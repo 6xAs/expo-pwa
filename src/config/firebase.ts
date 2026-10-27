@@ -1,6 +1,8 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 
+// Expo substitui referências estáticas EXPO_PUBLIC_* durante o bundle Web.
+// Não inicialize o SDK durante a renderização estática do Expo Router.
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -10,11 +12,13 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-const obrigatorias = ['apiKey', 'authDomain', 'projectId', 'appId'] as const;
-const faltantes = obrigatorias.filter((campo) => !firebaseConfig[campo]);
-if (faltantes.length) {
-  throw new Error('Configuração Firebase incompleta: defina as variáveis EXPO_PUBLIC_FIREBASE_* no Vercel.');
+export function obterFirestore() {
+  if (typeof window === 'undefined') {
+    throw new Error('O Firestore deve ser acessado somente no cliente Web.');
+  }
+  if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId || !firebaseConfig.appId) {
+    throw new Error('Firebase não configurado: confira EXPO_PUBLIC_FIREBASE_* no ambiente Preview do Vercel.');
+  }
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  return getFirestore(app, process.env.EXPO_PUBLIC_FIREBASE_DATABASE_ID || '(default)');
 }
-
-export const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
-export const db = getFirestore(firebaseApp, process.env.EXPO_PUBLIC_FIREBASE_DATABASE_ID || '(default)');
