@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, type Firestore } from 'firebase/firestore';
 
 // Expo substitui referências estáticas EXPO_PUBLIC_* durante o bundle Web.
 // Não inicialize o SDK durante a renderização estática do Expo Router.
@@ -12,6 +12,8 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
+let instanciaFirestore: Firestore | null = null;
+
 export function obterFirestore() {
   if (typeof window === 'undefined') {
     throw new Error('O Firestore deve ser acessado somente no cliente Web.');
@@ -20,5 +22,14 @@ export function obterFirestore() {
     throw new Error('Firebase não configurado: confira EXPO_PUBLIC_FIREBASE_* no ambiente Preview do Vercel.');
   }
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  return getFirestore(app, process.env.EXPO_PUBLIC_FIREBASE_DATABASE_ID || '(default)');
+  if (!instanciaFirestore) {
+    // Transporte long-polling: contorna bloqueios de WebChannel/streaming
+    // em determinados navegadores, proxies e redes.
+    instanciaFirestore = initializeFirestore(
+      app,
+      { experimentalForceLongPolling: true },
+      process.env.EXPO_PUBLIC_FIREBASE_DATABASE_ID || '(default)',
+    );
+  }
+  return instanciaFirestore;
 }
