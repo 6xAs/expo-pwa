@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { listarUsuarios, type Usuario } from '@/services/usuariosService';
+import { ActivityIndicator, Alert, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { excluirUsuario, listarUsuarios, type Usuario } from '@/services/usuariosService';
 
 export default function PessoasScreen() {
   const [pessoas, setPessoas] = useState<Usuario[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
+  const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -26,11 +27,41 @@ export default function PessoasScreen() {
 
   useEffect(() => { void carregar(); }, [carregar]);
 
+  async function excluir(id: string) {
+    setExcluindoId(id);
+    setErro('');
+    try {
+      await excluirUsuario(id);
+      setPessoas((atuais) => atuais.filter((pessoa) => pessoa.id !== id));
+    } catch (error) {
+      const codigo = (error as { code?: string }).code;
+      setErro(codigo === 'permission-denied'
+        ? 'O Firestore não autorizou a exclusão. Verifique a autenticação e as regras de segurança.'
+        : 'Não foi possível excluir a pessoa. Tente novamente.');
+    } finally {
+      setExcluindoId(null);
+    }
+  }
+
+  function confirmarExclusao(pessoa: Usuario) {
+    if (excluindoId) return;
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(`Excluir ${pessoa.nome}? Esta ação não pode ser desfeita.`)) {
+        void excluir(pessoa.id);
+      }
+      return;
+    }
+    Alert.alert('Confirmar exclusão', `Excluir ${pessoa.nome}? Esta ação não pode ser desfeita.`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Excluir', style: 'destructive', onPress: () => void excluir(pessoa.id) },
+    ]);
+  }
+
   return (
     <SafeAreaView style={styles.page}>
       <ScrollView contentContainerStyle={styles.shell}>
         <View style={styles.header}>
-          <Text style={styles.eyebrow}>EXPO PWA • CHECKPOINT 4</Text>
+          <Text style={styles.eyebrow}>EXPO PWA • CRUD FIRESTORE</Text>
           <Text style={styles.title}>Pessoas cadastradas</Text>
           <Text style={styles.subtitle}>Dados consultados diretamente na coleção usuarios do Firestore.</Text>
         </View>
@@ -60,8 +91,8 @@ export default function PessoasScreen() {
                       <Text style={styles.email}>{pessoa.email}</Text>
                     </View>
                     <View style={styles.actions}>
-                      <View style={styles.editButton}><Text style={styles.editText}>Editar</Text></View>
-                      <View style={styles.deleteButton}><Text style={styles.deleteText}>Excluir</Text></View>
+                      <Pressable onPress={() => router.push({ pathname: '/', params: { id: pessoa.id, nome: pessoa.nome, email: pessoa.email } })} style={styles.editButton}><Text style={styles.editText}>Editar</Text></Pressable>
+                      <Pressable disabled={Boolean(excluindoId)} onPress={() => confirmarExclusao(pessoa)} style={styles.deleteButton}><Text style={styles.deleteText}>{excluindoId === pessoa.id ? 'Excluindo...' : 'Excluir'}</Text></Pressable>
                     </View>
                   </View>
                 ))}
@@ -74,7 +105,7 @@ export default function PessoasScreen() {
         <Pressable onPress={() => router.replace('/')} style={styles.primaryButton}>
           <Text style={styles.primaryButtonText}>+ Cadastrar nova pessoa</Text>
         </Pressable>
-        <Text style={styles.note}>A leitura é real. Cadastro, edição e exclusão serão ativados nos próximos checkpoints.</Text>
+        <Text style={styles.note}>Cadastro, consulta, edição e exclusão integrados ao Firestore.</Text>
       </ScrollView>
     </SafeAreaView>
   );
