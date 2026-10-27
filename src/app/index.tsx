@@ -44,11 +44,19 @@ export default function CadastroScreen() {
       setTipoMensagem('sucesso');
       setMensagem(editando ? 'Cadastro atualizado no Firestore com sucesso!' : 'Pessoa cadastrada no Firestore com sucesso!');
     } catch (error) {
-      const codigo = (error as { code?: string }).code;
+      const codigo = (error as { code?: string }).code || 'sem-codigo';
+      console.error('Falha ao salvar usuário no Firestore:', error);
       setTipoMensagem('erro');
-      setMensagem(codigo === 'permission-denied'
-        ? 'O Firestore não autorizou a gravação. Verifique a autenticação e as regras de segurança.'
-        : 'Não foi possível salvar no Firestore. Confira a conexão e tente novamente.');
+      const orientacoes: Record<string, string> = {
+        'permission-denied': 'Acesso negado pelas regras do Firestore. Verifique a autenticação; não habilite escrita pública.',
+        'unavailable': 'Serviço Firestore indisponível ou sem conexão. Tente novamente.',
+        'unauthenticated': 'É necessário autenticar-se antes de gravar no Firestore.',
+        'not-found': 'Documento não encontrado. Atualize a lista e tente novamente.',
+        'failed-precondition': 'Operação bloqueada por uma pré-condição do Firestore.',
+        'invalid-argument': 'Os dados enviados não foram aceitos pelo Firestore.',
+        'sem-codigo': 'Erro de configuração ou inicialização. Verifique as variáveis EXPO_PUBLIC_FIREBASE_* no Preview do Vercel.',
+      };
+      setMensagem(`Falha ao salvar (código: ${codigo}). ${orientacoes[codigo] || 'Confira o console do navegador para detalhes técnicos.'}`);
     } finally {
       setSalvando(false);
     }
