@@ -48,6 +48,9 @@ export default function CadastroScreen() {
       console.error('Falha ao salvar usuário no Firestore:', error);
       setTipoMensagem('erro');
       const orientacoes: Record<string, string> = {
+        'auth/timeout': 'O login anônimo não respondeu em 12 segundos. Verifique a conexão e o provedor Anônimo no Firebase.',
+        'firestore/timeout': 'O Firestore não confirmou a gravação em 20 segundos. Confira a coleção usuarios antes de tentar novamente para evitar duplicidade.',
+        'auth/admin-restricted-operation': 'O login anônimo está desativado no projeto Firebase configurado.',
         'permission-denied': 'Acesso negado pelas regras do Firestore. Verifique a autenticação; não habilite escrita pública.',
         'unavailable': 'Serviço Firestore indisponível ou sem conexão. Tente novamente.',
         'unauthenticated': 'É necessário autenticar-se antes de gravar no Firestore.',
